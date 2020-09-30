@@ -12,17 +12,10 @@ def debug_port():
 @pytest.fixture
 def power_cycled(debug_port):
     """Make sure DUT is freshly restarted at beginning of test"""
-    password = "hunter2"
+    from bootup import bootup
     with debug_port.listen() as lines:
         debug_port.toggle_dtr()
-        lines.skip_until("Booting...")
-        lines.skip_until("Loading blocks...")
-        lines.skip_until("Starting user space")
-        lines.skip_until("Enter secret password")
-        debug_port.send_line(password)
-        lines.expect_next(password)
-        lines.expect_next("Logged in")
-        lines.expect_next("Enter command")
+        bootup(debug_port, lines)
 
 
 @pytest.fixture
