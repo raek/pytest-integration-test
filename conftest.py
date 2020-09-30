@@ -10,11 +10,25 @@ def debug_port():
 
 
 @pytest.fixture
-def power_cycled(debug_port):
+def charging_cable():
+    """Control the charger cable
+
+    When tests are not running the charging cable should be left connected, so
+    that the battery does not drain.
+    """
+    from cable_control import ChargingCable
+    cc = ChargingCable()
+    yield cc
+    cc.connect()
+
+
+@pytest.fixture
+def power_cycled(debug_port, charging_cable):
     """Make sure DUT is freshly restarted at beginning of test"""
     from bootup import bootup
     with debug_port.listen() as lines:
-        debug_port.toggle_dtr()
+        with charging_cable.temporarily_disconnected():
+            debug_port.toggle_dtr()
         bootup(debug_port, lines)
 
 
