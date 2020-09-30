@@ -29,6 +29,7 @@ class DebugPort():
     def __exit__(self, exc_type, exc_value, traceback):
         self._logger.debug("exit")
         self._serial.close()
+        self._background_reader.stop()
         return False
 
     def send_line(self, line):
@@ -71,8 +72,15 @@ class _BackgroundReader():
                     self._logger.info("<== " + line)
                     self._dispatcher.dispatch(line)
         except Exception as e:
-            self._logger.error("Error in _BackgroundReader thread", exc_info=e)
+            if self._serial.is_open:
+                self._logger.error("Error in _BackgroundReader thread", exc_info=e)
+            else:
+                # About to shut down. Error probably caused by that.
+                pass
         self._logger.debug("End")
+
+    def stop(self):
+        self._thread.join()
 
 
 class _LineDispatcher():
