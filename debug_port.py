@@ -14,6 +14,9 @@ class DebugPort():
     def __init__(self, device, baudrate):
         self._logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
         self._logger.debug("Init DebugPort")
+        # Workaround for incompatibility between Linux DTR handling and Arduino usage of DTR for reset
+        import os
+        os.system(f"stty -F {device} -hupcl")
         self._serial = serial.Serial()
         self._serial.port = device
         self._serial.baudrate = baudrate
