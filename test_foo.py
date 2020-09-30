@@ -40,4 +40,4 @@ def test_boot(power_cycled, command_runner):
 
 @pytest.mark.features
 def test_calculate(command_runner):
-    assert command_runner.run("calculate") == ["42"]
+    assert command_runner.run_command("calculate") == ["42"]
