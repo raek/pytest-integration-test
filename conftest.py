@@ -9,7 +9,7 @@ def debug_port():
         yield dp
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def charging_cable():
     """Control the charger cable
 
