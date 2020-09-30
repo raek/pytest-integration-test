@@ -63,9 +63,11 @@ class _BackgroundReader():
         self._logger.debug("Begin")
         try:
             while True:
-                byteline = self._serial.readline().strip()
-                if byteline:
-                    line = byteline.decode("utf8")
+                byteline = self._serial.readline()
+                if byteline is None:
+                    return
+                elif byteline:
+                    line = byteline.decode("utf8").strip()
                     self._logger.info("<== " + line)
                     self._dispatcher.dispatch(line)
         except Exception as e:
