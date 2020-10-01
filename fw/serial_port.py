@@ -11,7 +11,7 @@ from fw.stream import Dispatcher, Listener
 from fw.worker_thread import worker_thread
 
 
-class DebugPort(Port, ExitStack):
+class SerialPort(Port, ExitStack):
     """Line based communication using a serial port
 
     This class is a context manager.

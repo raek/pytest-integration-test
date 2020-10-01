@@ -9,9 +9,9 @@ def pytest_configure(config):
 
 @pytest.fixture
 def debug_port():
-    """Line-based access to the main debug port"""
-    from fw.debug_port import DebugPort
-    with DebugPort("/dev/ttyUSB0", 115200) as dp:
+    """Line-based access to the main debug serial port"""
+    from fw.serial_port import SerialPort
+    with SerialPort("/dev/ttyUSB0", 115200) as dp:
         yield dp
 
 
