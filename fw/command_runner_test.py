@@ -2,7 +2,7 @@ from contextlib import contextmanager, suppress
 
 import pytest
 
-from fw.command_runner import CommandRunner
+from fw.command_runner import CommandRunner, CommandError
 from fw.pipe_port import pipe_port_pair
 from fw.stream import EndOfStreamError, TimeoutError
 from fw.worker_thread import worker_thread
@@ -45,3 +45,16 @@ def test_failing_try_run_command(fake_command_interpreter):
     cr = CommandRunner(fake_command_interpreter)
     ok, lines = cr.try_run_command("xyz", timeout_seconds=TEST_TIMEOUT_SECONDS)
     assert not ok
+
+
+def test_successful_run_command(fake_command_interpreter):
+    cr = CommandRunner(fake_command_interpreter)
+    lines = cr.run_command("ping", timeout_seconds=TEST_TIMEOUT_SECONDS)
+    assert lines == ["pong"]
+
+
+def test_failing_run_command(fake_command_interpreter):
+    cr = CommandRunner(fake_command_interpreter)
+    with pytest.raises(CommandError):
+        lines = cr.run_command("xyz", timeout_seconds=TEST_TIMEOUT_SECONDS)
+
