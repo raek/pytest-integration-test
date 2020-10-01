@@ -1,3 +1,4 @@
+from contextlib import ExitStack
 import logging
 from queue import Queue
 import time
@@ -6,36 +7,61 @@ import threading
 import serial
 
 from fw.stream import Dispatcher, Listener
+from fw.worker_thread import worker_thread
 
 
-dp_logger = logging.getLogger(__name__ + ".DebugPort")
+class DebugPort(ExitStack):
+    """Line based communication using a serial port
 
-
-class DebugPort:
-    """Line based communication using a serial port"""
+    This class is a context manager.
+    """
     def __init__(self, device, baudrate):
+        super().__init__()
         self._logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
-        self._logger.debug("Init DebugPort")
-        # Workaround for incompatibility between Linux DTR handling and Arduino usage of DTR for reset
+        self._logger.debug("init")
+        self.callback(self._logger.debug, "close")
+
+        # Workaround for incompatibility between Linux DTR handling and
+        # Arduino usage of DTR for reset
         import os
         os.system(f"stty -F {device} -hupcl")
+
+        self._incoming_line_dispatcher = Dispatcher()
+
+        # Open port using pyserial
         self._serial = serial.Serial()
         self._serial.port = device
         self._serial.baudrate = baudrate
-        self._serial.timeout = 1 # timeout for reads
+        self._serial.timeout = 1  # timeout for reads
         self._serial.open()
-        self._incoming_line_dispatcher = Dispatcher()
-        self._background_reader = _BackgroundReader(self._serial, self._incoming_line_dispatcher)
 
-    def __enter__(self):
-        self._logger.debug("enter")
-        return self
+        # Start background worker thread and make sure it and the socket are
+        # torn down at exit
+        self.enter_context(worker_thread(worker_function=self._receive_lines,
+                                         stop_function=self._serial.close))
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        self._logger.debug("exit")
+    def _close(self):
+        self._logger.debug("close")
         self._serial.close()
-        self._background_reader.stop()
-        return False
+
+    def _receive_lines(self):
+        self._logger.debug("worker thread begin")
+        try:
+            while True:
+                byteline = self._serial.readline()
+                if byteline is None:
+                    return
+                elif byteline:
+                    line = byteline.decode("utf8").strip()
+                    self._logger.info("<== " + line)
+                    self._incoming_line_dispatcher.dispatch(line)
+        except Exception as e:
+            if self._serial.is_open:
+                raise e
+            else:
+                # About to shut down. Error probably caused by that.
+                pass
+        self._logger.debug("worker thread end")
 
     def send_line(self, line):
         self._logger.info("==> " + line)
@@ -50,39 +76,3 @@ class DebugPort:
     def listen(self):
         self._logger.debug("listen")
         return Listener(self._incoming_line_dispatcher)
-
-
-class _BackgroundReader:
-    """Transfer lines from OS buffer to dispatcher
-
-    If the OS buffer is full, then characters will be dropped.
-    """
-    def __init__(self, serial, incoming_line_dispatcher):
-        self._logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
-        self._serial = serial
-        self._incoming_line_dispatcher = incoming_line_dispatcher
-        self._thread = threading.Thread(target=self._thread_main)
-        self._thread.daemon = True
-        self._thread.start()
-
-    def _thread_main(self):
-        self._logger.debug("Begin")
-        try:
-            while True:
-                byteline = self._serial.readline()
-                if byteline is None:
-                    return
-                elif byteline:
-                    line = byteline.decode("utf8").strip()
-                    self._logger.info("<== " + line)
-                    self._incoming_line_dispatcher.dispatch(line)
-        except Exception as e:
-            if self._serial.is_open:
-                self._logger.error("Error in _BackgroundReader thread", exc_info=e)
-            else:
-                # About to shut down. Error probably caused by that.
-                pass
-        self._logger.debug("End")
-
-    def stop(self):
-        self._thread.join()
