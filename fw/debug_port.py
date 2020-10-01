@@ -5,6 +5,8 @@ import threading
 
 import serial
 
+from fw.stream import Dispatcher, Listener
+
 
 dp_logger = logging.getLogger(__name__ + ".DebugPort")
 
@@ -22,8 +24,8 @@ class DebugPort():
         self._serial.baudrate = baudrate
         self._serial.timeout = 1 # timeout for reads
         self._serial.open()
-        self._dispatcher = _LineDispatcher()
-        self._background_reader = _BackgroundReader(self._serial, self._dispatcher)
+        self._incoming_line_dispatcher = Dispatcher()
+        self._background_reader = _BackgroundReader(self._serial, self._incoming_line_dispatcher)
 
     def __enter__(self):
         self._logger.debug("enter")
@@ -47,18 +49,18 @@ class DebugPort():
 
     def listen(self):
         self._logger.debug("listen")
-        return _LineListener(self._dispatcher)
+        return Listener(self._incoming_line_dispatcher)
 
 
 class _BackgroundReader():
     """Transfer lines from OS buffer to dispatcher
-    
+
     If the OS buffer is full, then characters will be dropped.
     """
-    def __init__(self, serial, dispatcher):
+    def __init__(self, serial, incoming_line_dispatcher):
         self._logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
         self._serial = serial
-        self._dispatcher = dispatcher
+        self._incoming_line_dispatcher = incoming_line_dispatcher
         self._thread = threading.Thread(target=self._thread_main)
         self._thread.daemon = True
         self._thread.start()
@@ -73,7 +75,7 @@ class _BackgroundReader():
                 elif byteline:
                     line = byteline.decode("utf8").strip()
                     self._logger.info("<== " + line)
-                    self._dispatcher.dispatch(line)
+                    self._incoming_line_dispatcher.dispatch(line)
         except Exception as e:
             if self._serial.is_open:
                 self._logger.error("Error in _BackgroundReader thread", exc_info=e)
@@ -84,76 +86,3 @@ class _BackgroundReader():
 
     def stop(self):
         self._thread.join()
-
-
-class _LineDispatcher():
-    """Allow multiple consumers of lines"""
-    def __init__(self):
-        self._listener_queues = {}
-
-    def dispatch(self, line):
-        """Distribute line to each listener"""
-        for queue in self._listener_queues.values():
-            queue.put(line)
-
-    def add_listener(self, listener):
-        """Register a new listener
-        
-        Lines will appear in the return queue.
-        """
-        queue = Queue()
-        self._listener_queues[listener] = queue
-        return queue
-
-    def remove_listener(self, listener):
-        """Stop receiving lines"""
-        del self._listener_queues[listener]
-
-
-class LineError(Exception):
-    pass
-
-
-class _LineListener():
-    """Context manager that receives lines during its scope"""
-    def __init__(self, dispatcher):
-        self._logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
-        self._dispatcher = dispatcher
-        self._queue = None
-
-    def __enter__(self):
-        self._logger.debug("enter")
-        self._queue = self._dispatcher.add_listener(self)
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self._logger.debug("exit")
-        self._dispatcher.remove_listener(self)
-        self._queue = None
-        return False
-
-    def _next(self):
-        assert self._queue is not None, "Listener not registered"
-        return self._queue.get()
-
-    def next(self):
-        line = self._next()
-        self._logger.debug("next: " + line)
-        return line
-
-    def expect_next(self, expected_line):
-        self._logger.debug("expect_next: " + expected_line)
-        actual_line = self._next()
-        if actual_line != expected_line:
-            raise LineError(f'Expected line "{expected_line}", got "{actual_line}"')
-
-    def skip_until(self, expected_line):
-        self._logger.debug("skip_until: " + expected_line)
-        skipped = 0
-        while True:
-            line = self._next()
-            if line == expected_line:
-                self._logger.debug(f"skipped {skipped} lines")
-                return
-            else:
-                skipped += 1
