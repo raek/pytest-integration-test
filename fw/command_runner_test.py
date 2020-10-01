@@ -1,4 +1,5 @@
 from contextlib import contextmanager, suppress
+from threading import Event
 
 import pytest
 
@@ -14,15 +15,22 @@ TEST_TIMEOUT_SECONDS = 1  # Should be instant in unit tests
 @pytest.fixture
 def fake_command_interpreter():
     external_port, internal_port = pipe_port_pair()
+    interpreter_started = Event()
+    def ready_callback():
+        interpreter_started.set()
     def worker_function():
-        emulate_command_interpreter(internal_port)
-    with external_port, internal_port, worker_thread(worker_function):
+        emulate_command_interpreter(internal_port, ready_callback)
+    with external_port, \
+         internal_port, \
+         worker_thread(worker_function, stop_function=internal_port.close):
+        interpreter_started.wait()  # FIXME: Solve this in a better way
         yield external_port
 
 
-def emulate_command_interpreter(port):
+def emulate_command_interpreter(port, ready_callback):
     with suppress(EndOfStreamError, TimeoutError), \
          port.listen() as lines:
+        ready_callback()
         while True:
             command = lines.next(timeout_seconds=TEST_TIMEOUT_SECONDS)
             port.send(command)
