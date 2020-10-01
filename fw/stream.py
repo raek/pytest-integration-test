@@ -3,6 +3,12 @@ import logging
 from queue import Queue
 
 
+from fw.timeout import TimeoutCalculator
+
+
+DEFAULT_TIMEOUT_SECONDS = 60
+
+
 class Dispatcher:
     """Allow multiple listeners to independently consume a stream of values
 
@@ -74,29 +80,30 @@ class Listener:
         self._queue = None
         return False
 
-    def _next(self):
+    def _next(self, timeout_seconds):
         assert self._queue is not None, "Listener not registered"
-        return self._queue.get()
+        return self._queue.get(timeout=timeout_seconds)
 
-    def next(self):
+    def next(self, timeout_seconds=DEFAULT_TIMEOUT_SECONDS):
         """Return the next value in the stream and advance the current position"""
-        line = self._next()
+        line = self._next(timeout_seconds)
         self._logger.debug("next: " + line)
         return line
 
-    def expect_next(self, expected_line):
+    def expect_next(self, expected_line, timeout_seconds=DEFAULT_TIMEOUT_SECONDS):
         """Consume the next value in the stream and check that it matches the given value"""
         self._logger.debug("expect_next: " + expected_line)
-        actual_line = self._next()
+        actual_line = self._next(timeout_seconds)
         if actual_line != expected_line:
             raise ListenerError(f'Expected "{expected_line}", got "{actual_line}"')
 
-    def skip_until(self, expected_line):
+    def skip_until(self, expected_line, timeout_seconds=DEFAULT_TIMEOUT_SECONDS):
         """Consume values in the stream until one that matches the given value is found"""
         self._logger.debug("skip_until: " + expected_line)
         skipped = 0
+        tc = TimeoutCalculator(timeout_seconds)
         while True:
-            line = self._next()
+            line = self._next(tc.time_left_now())
             if line == expected_line:
                 self._logger.debug(f"skipped {skipped} lines")
                 return
