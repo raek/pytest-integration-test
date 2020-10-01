@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+
 class TimeoutCalculator:
     """Keeps track of how much time is left"""
     def __init__(self, timeout_seconds):
