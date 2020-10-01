@@ -20,8 +20,9 @@ def worker_thread(worker_function, stop_function=None):
     thread.daemon = True
     thread.start()
     yield
-    try:
-        stop_function()
-    except Exception as e:
-        logger.error("Error when stopping worker thread", exc_info=e)
-    thread.join
+    if stop_function is not None:
+        try:
+            stop_function()
+        except Exception as e:
+            logger.error("Error when stopping worker thread", exc_info=e)
+    thread.join()
