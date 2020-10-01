@@ -7,6 +7,15 @@ from fw.timeout import TimeoutCalculator
 
 
 DEFAULT_TIMEOUT_SECONDS = 60
+END_OF_STREAM = object()  # Unique sentinel value
+
+
+class EndOfStreamError(Exception):
+    pass
+
+
+class MatchError(Exception):
+    pass
 
 
 class Dispatcher:
@@ -19,17 +28,36 @@ class Dispatcher:
     by having each listener consume stream values by popping them off a queue.
     The queue represents the future values for that listener, and each
     listener has its own queue.
+
+    The stream can also be closed. This causes listener methods to raise an
+    EndOfStreamError if they attempt to read values past the end.
     """
     def __init__(self):
+        self._is_closed = False
         self._listener_queues = {}
 
     def dispatch(self, value):
         """Distribute value to each listener
 
         This method is called by the producer."""
+        assert not self._is_closed, "Dispatcher is closed"
         for queue in self._listener_queues.values():
             queue.put(value)
 
+    def close(self):
+        """Tell listeneres stream has ended
+
+        This also inhibits new calls to 'dispatch'. It is safe to close the
+        dispatcher multiple times.
+
+        A listener will raise an EndOfStreamError if it attempts to read any
+        values past any values already existing in its queue.
+        """
+        if self._is_closed:
+            return
+        for queue in self._listener_queues.values():
+            queue.put(END_OF_STREAM)
+        self._is_closed = True
 
     def add_listener(self, listener):
         """Register a new listener
@@ -50,10 +78,6 @@ class Dispatcher:
         listener remains in the listener's queue.
         """
         del self._listener_queues[listener]
-
-
-class ListenerError(Exception):
-    pass
 
 
 class Listener:
@@ -95,7 +119,7 @@ class Listener:
         self._logger.debug("expect_next: " + expected_line)
         actual_line = self._next(timeout_seconds)
         if actual_line != expected_line:
-            raise ListenerError(f'Expected "{expected_line}", got "{actual_line}"')
+            raise MatchError(f'Expected "{expected_line}", got "{actual_line}"')
 
     def skip_until(self, expected_line, timeout_seconds=DEFAULT_TIMEOUT_SECONDS):
         """Consume values in the stream until one that matches the given value is found"""

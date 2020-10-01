@@ -7,7 +7,7 @@ import threading
 import serial
 
 from fw.interface import Port
-from fw.stream import Dispatcher, Listener
+from fw.stream import Dispatcher, Listener, EndOfStreamError
 from fw.worker_thread import worker_thread
 
 
@@ -28,6 +28,7 @@ class SerialPort(Port, ExitStack):
         os.system(f"stty -F {device} -hupcl")
 
         self._incoming_line_dispatcher = Dispatcher()
+        self.callback(self._incoming_line_dispatcher.close)
 
         # Open port using pyserial
         self._serial = serial.Serial()
