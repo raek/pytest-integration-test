@@ -46,9 +46,10 @@ class SerialPort(Port, ExitStack):
         self._logger.debug("close")
         self._serial.close()
 
-    def _receive_lines(self):
+    def _receive_lines(self, signal_thread_ready):
         self._logger.debug("worker thread begin")
         try:
+            signal_thread_ready()
             while True:
                 byteline = self._serial.readline()
                 if byteline is None:
