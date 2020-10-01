@@ -31,10 +31,12 @@ def worker_thread(worker_function, stop_function=None):
     thread.daemon = True
     thread.start()
     thread_ready.wait()
-    yield
-    if stop_function is not None:
-        try:
-            stop_function()
-        except Exception as e:
-            logger.error("Error when stopping worker thread", exc_info=e)
-    thread.join()
+    try:
+        yield
+    finally:
+        if stop_function is not None:
+            try:
+                stop_function()
+            except Exception as e:
+                logger.error("Error when stopping worker thread", exc_info=e)
+        thread.join()

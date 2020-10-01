@@ -15,8 +15,10 @@ class ChargingCable:
     @contextmanager
     def temporarily_disconnected(self):
         self.disconnect()
-        yield
-        self.connect()
+        try:
+            yield
+        finally:
+            self.connect()
 
     def connect(self):
         self._logger.debug("connect")
