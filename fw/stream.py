@@ -3,7 +3,7 @@ import logging
 from queue import Queue
 
 
-class Dispatcher():
+class Dispatcher:
     """Allow multiple listeners to independently consume a stream of values
 
     This class acts as the producer in a producer-consumer pattern, but also
@@ -50,7 +50,7 @@ class ListenerError(Exception):
     pass
 
 
-class Listener():
+class Listener:
     """Context manager that subscribes to a stream of values from a dispatcher
 
     This class acts as the consumer in a producer-consumer pattern.

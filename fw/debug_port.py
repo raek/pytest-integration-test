@@ -11,7 +11,7 @@ from fw.stream import Dispatcher, Listener
 dp_logger = logging.getLogger(__name__ + ".DebugPort")
 
 
-class DebugPort():
+class DebugPort:
     """Line based communication using a serial port"""
     def __init__(self, device, baudrate):
         self._logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
@@ -52,7 +52,7 @@ class DebugPort():
         return Listener(self._incoming_line_dispatcher)
 
 
-class _BackgroundReader():
+class _BackgroundReader:
     """Transfer lines from OS buffer to dispatcher
 
     If the OS buffer is full, then characters will be dropped.
