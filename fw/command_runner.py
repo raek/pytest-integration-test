@@ -7,7 +7,7 @@ class CommandRunner:
 
     def run_command(self, command):
         """Send a command, collect its output lines and check that it succeeded.
-        
+
         Returns a list of lines
         """
         ok, lines = self.try_run_command(command)
@@ -23,7 +23,7 @@ class CommandRunner:
         """
         with self._debug_port.listen() as lines:
             # Send command
-            self._debug_port.send_line(command)
+            self._debug_port.send(command)
             # Expect command echo
             lines.expect_next(command)
             # Read lines until end (OK or ERROR)

@@ -6,11 +6,12 @@ import threading
 
 import serial
 
+from fw.interface import Port
 from fw.stream import Dispatcher, Listener
 from fw.worker_thread import worker_thread
 
 
-class DebugPort(ExitStack):
+class DebugPort(Port, ExitStack):
     """Line based communication using a serial port
 
     This class is a context manager.
@@ -63,7 +64,7 @@ class DebugPort(ExitStack):
                 pass
         self._logger.debug("worker thread end")
 
-    def send_line(self, line):
+    def send(self, line):
         self._logger.info("==> " + line)
         self._serial.write(line.encode("utf8") + b"\n")
 

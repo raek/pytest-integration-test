@@ -17,6 +17,6 @@ def bootup(debug_port, lines):
 
 def authenticate(debug_port, lines):
     lines.skip_until("Enter secret password")
-    debug_port.send_line(PASSWORD)
+    debug_port.send(PASSWORD)
     lines.expect_next(PASSWORD)
     lines.expect_next("Logged in")
