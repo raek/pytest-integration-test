@@ -3,11 +3,12 @@ import pytest
 
 def pytest_configure(config):
     config.addinivalue_line("usefixtures", "charging_cable")
+    config.addinivalue_line("usefixtures", "restart_detector")
     config.addinivalue_line("markers", "initialize")
     config.addinivalue_line("markers", "features")
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def debug_port():
     """Line-based access to the main debug serial port"""
     from fw.serial_port import SerialPort
@@ -29,10 +30,11 @@ def charging_cable():
 
 
 @pytest.fixture
-def power_cycled(debug_port, charging_cable):
+def power_cycled(debug_port, charging_cable, restart_detector):
     """Make sure DUT is freshly restarted at beginning of test"""
     from fw.bootup import bootup
-    with debug_port.listen() as lines:
+    with restart_detector.allow_restarts(), \
+         debug_port.listen() as lines:
         with charging_cable.temporarily_disconnected():
             debug_port.toggle_dtr()
         bootup(debug_port, lines)
@@ -45,3 +47,11 @@ def command_runner(debug_port):
     cr = CommandRunner(debug_port)
     assert cr.run_command("ping") == ["pong"]
     return cr
+
+
+@pytest.fixture(scope="session")
+def restart_detector(debug_port):
+    from fw.bootup import RestartDetector
+    with RestartDetector(debug_port) as rd:
+        yield rd
+        assert not rd.check_restart_found_and_clear(), "Restart was detected during test"
