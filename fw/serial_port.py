@@ -69,12 +69,12 @@ class SerialPort(Port, ExitStack):
         self._logger.info("==> " + line)
         self._serial.write(line.encode("utf8") + b"\n")
 
+    def listen(self):
+        self._logger.debug("listen")
+        return Listener(self._incoming_line_dispatcher)
+
     def toggle_dtr(self):
         self._logger.debug("toggle_dtr")
         self._serial.dtr = False
         time.sleep(0.1)
         self._serial.dtr = True
-
-    def listen(self):
-        self._logger.debug("listen")
-        return Listener(self._incoming_line_dispatcher)
