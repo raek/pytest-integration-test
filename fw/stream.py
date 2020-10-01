@@ -115,14 +115,17 @@ class Listener:
     def _next(self, timeout_seconds):
         assert self._queue is not None, "Listener not registered"
         try:
-            return self._queue.get(timeout=timeout_seconds)
+            value = self._queue.get(timeout=timeout_seconds)
         except Empty:  # "Empty" is the exception type used for get() timeouts
             raise TimeoutError() from None  # Don't chain the new exception with the old one
+        if value is END_OF_STREAM:
+            raise EndOfStreamError()
+        return value
 
     def next(self, timeout_seconds=DEFAULT_TIMEOUT_SECONDS):
         """Return the next value in the stream and advance the current position"""
         line = self._next(timeout_seconds)
-        self._logger.debug("next: " + line)
+        self._logger.debug(f"next: {line}")
         return line
 
     def expect_next(self, expected_line, timeout_seconds=DEFAULT_TIMEOUT_SECONDS):
@@ -134,7 +137,7 @@ class Listener:
 
     def skip_until(self, expected_line, timeout_seconds=DEFAULT_TIMEOUT_SECONDS):
         """Consume values in the stream until one that matches the given value is found"""
-        self._logger.debug("skip_until: " + expected_line)
+        self._logger.debug(f"skip_until: {expected_line}")
         skipped = 0
         tc = TimeoutCalculator(timeout_seconds)
         while True:
