@@ -1,3 +1,6 @@
+from fw.timeout import TimeoutCalculator
+
+
 class CommandError(Exception):
     pass
 
@@ -16,7 +19,7 @@ class CommandRunner:
         else:
             raise CommandError("Error running command: " + command)
 
-    def try_run_command(self, command):
+    def try_run_command(self, command, timeout_seconds=20):
         """Send a command and return whether it succeeded and the lines output by the command.
 
         Returns a (bool, lines) pair.
@@ -25,12 +28,13 @@ class CommandRunner:
             # Send command
             self._debug_port.send(command)
             # Expect command echo
-            lines.expect_next(command)
+            lines.expect_next(command, timeout_seconds=3)
             # Read lines until end (OK or ERROR)
+            tc = TimeoutCalculator(timeout_seconds)
             result = []
             ok = None
             while True:
-                line = lines.next()
+                line = lines.next(timeout_seconds=tc.time_left_now())
                 if line == "OK":
                     ok = True
                     break
@@ -40,5 +44,5 @@ class CommandRunner:
                 else:
                     result.append(line)
             # Expect next prompt
-            lines.expect_next("Enter command")
+            lines.expect_next("Enter command", timeout_seconds=3)
             return ok, result
