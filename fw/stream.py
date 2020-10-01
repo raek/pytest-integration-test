@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 import logging
-from queue import Queue
+from queue import Queue, Empty
 
 
 from fw.timeout import TimeoutCalculator
@@ -10,11 +10,19 @@ DEFAULT_TIMEOUT_SECONDS = 60
 END_OF_STREAM = object()  # Unique sentinel value
 
 
-class EndOfStreamError(Exception):
+class StreamError(Exception):
     pass
 
 
-class MatchError(Exception):
+class EndOfStreamError(StreamError):
+    pass
+
+
+class MatchError(StreamError):
+    pass
+
+
+class TimeoutError(StreamError):
     pass
 
 
@@ -106,7 +114,10 @@ class Listener:
 
     def _next(self, timeout_seconds):
         assert self._queue is not None, "Listener not registered"
-        return self._queue.get(timeout=timeout_seconds)
+        try:
+            return self._queue.get(timeout=timeout_seconds)
+        except Empty:  # "Empty" is the exception type used for get() timeouts
+            raise TimeoutError() from None  # Don't chain the new exception with the old one
 
     def next(self, timeout_seconds=DEFAULT_TIMEOUT_SECONDS):
         """Return the next value in the stream and advance the current position"""
