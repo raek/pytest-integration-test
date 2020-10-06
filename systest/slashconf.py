@@ -1,14 +1,7 @@
-import pytest
+import slash
 
 
-def pytest_configure(config):
-    config.addinivalue_line("usefixtures", "charging_cable")
-    config.addinivalue_line("usefixtures", "restart_detector")
-    config.addinivalue_line("markers", "initialize")
-    config.addinivalue_line("markers", "features")
-
-
-@pytest.fixture(scope="session")
+@slash.fixture(scope="session")
 def debug_port():
     """Line-based access to the main debug serial port"""
     from fw.serial_port import SerialPort
@@ -16,7 +9,7 @@ def debug_port():
         yield dp
 
 
-@pytest.fixture(scope="session")
+@slash.fixture(scope="session", autouse=True)
 def charging_cable():
     """Control the charger cable
 
@@ -29,7 +22,7 @@ def charging_cable():
     cc.connect()
 
 
-@pytest.fixture
+@slash.fixture
 def power_cycled(debug_port, charging_cable, restart_detector):
     """Make sure DUT is freshly restarted at beginning of test"""
     from fw.bootup import bootup
@@ -40,7 +33,7 @@ def power_cycled(debug_port, charging_cable, restart_detector):
         bootup(debug_port, lines)
 
 
-@pytest.fixture
+@slash.fixture
 def command_runner(debug_port):
     """Run commands on the DUT"""
     from fw.command_runner import CommandRunner
@@ -49,7 +42,7 @@ def command_runner(debug_port):
     return cr
 
 
-@pytest.fixture(scope="session")
+@slash.fixture(scope="session", autouse=True)
 def restart_detector(debug_port):
     from fw.bootup import RestartDetector
     with RestartDetector(debug_port) as rd:

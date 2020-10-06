@@ -2,7 +2,7 @@ from contextlib import contextmanager, suppress
 from functools import partial
 from threading import Event
 
-import pytest
+import slash
 
 from fw.command_runner import CommandRunner, CommandError
 from fw.pipe_port import pipe_port_pair
@@ -13,7 +13,7 @@ from fw.worker_thread import worker_thread
 TEST_TIMEOUT_SECONDS = 1  # Should be instant in unit tests
 
 
-@pytest.fixture
+@slash.fixture
 def fake_command_interpreter():
     external_port, internal_port = pipe_port_pair()
     with external_port, \
@@ -59,6 +59,6 @@ def test_successful_run_command(fake_command_interpreter):
 
 def test_failing_run_command(fake_command_interpreter):
     cr = CommandRunner(fake_command_interpreter)
-    with pytest.raises(CommandError):
+    with slash.assert_raises(CommandError):
         lines = cr.run_command("xyz", timeout_seconds=TEST_TIMEOUT_SECONDS)
 
